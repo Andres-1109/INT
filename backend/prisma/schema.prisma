@@ -1,0 +1,281 @@
+// ============================================================
+// WSPACE — Prisma schema (PostgreSQL)
+// ============================================================
+// This is the "blueprint" of the database: it defines the tables where
+// WSPACE stores all of its data (users, spaces, bookings, photos,
+// amenities, favorites, notifications, reviews, etc.), following the
+// entity-relationship model the team designed. Normalized up to Third
+// Normal Form (3NF).
+//
+// Merge note: this schema combines María's complete, normalized data
+// model (photos and amenities as real relational tables, not string
+// arrays) with Daniel's choice of Prisma as the ORM. Field and enum
+// names are in English; category/amenity values match the frontend.
+//
+// favorites/notifications/reviews were added later (2026-07-17) to
+// close the three "Could have" gaps the original merge left as
+// placeholders — see docs/WSPACE_Backlog_Detallado.md, HU-12/13/23.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// WSpacer = books spaces. WSpacer+ = can also publish spaces.
+// Any account can hold both roles at once (see User.isHost below);
+// "role" here only distinguishes a regular account from the seeded
+// admin account.
+enum SystemRole {
+  user
+  admin
+}
+
+enum SpaceCategory {
+  private_office
+  meeting_room
+  coworking
+  creative_space
+  rehearsal_room
+}
+
+enum PublicationStatus {
+  pending_approval
+  approved
+  rejected
+}
+
+enum BookingStatus {
+  pending_approval
+  confirmed
+  rejected
+  cancelled_by_guest
+  cancelled_by_host
+  completed
+}
+
+enum PenaltyType {
+  host_penalty
+  guest_compensation
+}
+
+enum NotificationType {
+  booking_requested
+  booking_confirmed
+  booking_rejected
+  booking_cancelled
+}
+
+model User {
+  id                     Int      @id @default(autoincrement())
+  firstName              String
+  lastName               String
+  email                  String   @unique
+  passwordHash           String
+  phone                  String
+  nationalId              String?  @unique
+  nationalIdDocUrl        String?
+  bankCertificateUrl      String?
+
+  systemRole             SystemRole @default(user)
+  // WSpacer+ mode: true once the account has published at least one
+  // space. The SAME account can operate as guest and as host — the
+  // frontend just opens a new tab for "host mode" (see navbar.js).
+  isHost                 Boolean  @default(false)
+
+  freeBookingsUsed       Int      @default(0)
+  accountStatus          String   @default("active") // "active" | "inactive"
+  acceptedDataPolicy     Boolean  @default(true)
+  createdAt              DateTime @default(now())
+
+  spaces                 Space[]
+  bookings               Booking[]
+  favorites              Favorite[]
+  notifications          Notification[]
+  reviews                Review[]
+
+  @@map("users")
+}
+
+model Space {
+  id            Int                @id @default(autoincrement())
+  ownerId       Int
+  owner         User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name          String
+  type          SpaceCategory
+  city          String
+  neighborhood  String
+  capacity      Int                @default(1)
+  pricePerHour  Decimal            @db.Decimal(10, 2)
+  description   String?
+
+  openingTime   String?            // stored as "HH:MM", kept simple for the MVP
+  closingTime   String?
+
+  featured      Boolean            @default(false)
+  active        Boolean            @default(true)
+
+  publicationStatus PublicationStatus @default(pending_approval)
+  rejectionReason   String?
+
+  createdAt     DateTime           @default(now())
+
+  photos        SpacePhoto[]
+  amenities     SpaceAmenity[]
+  blocks        SpaceBlock[]
+  bookings      Booking[]
+  favoritedBy   Favorite[]
+  reviews       Review[]
+
+  @@index([city])
+  @@index([type])
+  @@map("spaces")
+}
+
+model SpacePhoto {
+  id      Int   @id @default(autoincrement())
+  spaceId Int
+  space   Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  url     String
+
+  @@map("space_photos")
+}
+
+// Amenity catalog: one row per amenity (wifi, drum kit, parking...),
+// connected to spaces through the join table below. This keeps the
+// amenity list queryable and consistent instead of a free-text array.
+model Amenity {
+  id     Int            @id @default(autoincrement())
+  name   String         @unique
+  spaces SpaceAmenity[]
+
+  @@map("amenities")
+}
+
+model SpaceAmenity {
+  spaceId   Int
+  amenityId Int
+  space     Space   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([spaceId, amenityId])
+  @@map("space_amenity")
+}
+
+// Manual blocks the host sets on their own space (maintenance, personal
+// use, etc.), separate from bookings made by guests.
+model SpaceBlock {
+  id        Int      @id @default(autoincrement())
+  spaceId   Int
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([spaceId, startDate, endDate])
+  @@map("space_blocks")
+}
+
+model Booking {
+  id        Int      @id @default(autoincrement())
+  spaceId   Int
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date      DateTime @db.Date
+  startTime String   // "HH:MM"
+  endTime   String   // "HH:MM"
+
+  // Business logic (guest fee 12% + VAT, host fee 6% + VAT) is calculated
+  // once, at booking time, and stored here — never recalculated later, so
+  // there's a fixed record of what was actually charged at that moment.
+  basePrice          Decimal @db.Decimal(10, 2)
+  guestFee           Decimal @db.Decimal(10, 2)
+  guestFeeTax        Decimal @db.Decimal(10, 2)
+  hostFee            Decimal @db.Decimal(10, 2)
+  hostFeeTax         Decimal @db.Decimal(10, 2)
+  total              Decimal @db.Decimal(10, 2)
+  hostNet            Decimal @db.Decimal(10, 2)
+  usedFreeBooking    Boolean @default(false)
+
+  status             BookingStatus @default(pending_approval)
+  responseDeadline   DateTime      // created_at + 24h, only meaningful while pending_approval
+  paymentReference   String?
+
+  createdAt          DateTime @default(now())
+
+  penalties          BookingPenalty[]
+  review             Review?
+
+  @@index([spaceId, date])
+  @@index([userId])
+  @@map("bookings")
+}
+
+// Late-cancellation penalties (host penalty / guest compensation). A
+// single late cancellation by the host generates two rows here, both
+// linked to the same booking, so each concept stays auditable on its own.
+model BookingPenalty {
+  id        Int         @id @default(autoincrement())
+  bookingId Int
+  booking   Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type      PenaltyType
+  amount    Decimal     @db.Decimal(10, 2)
+  createdAt DateTime    @default(now())
+
+  @@map("booking_penalties")
+}
+
+// A WSpacer's saved space (heart icon on the space card).
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spaceId   Int
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, spaceId])
+  @@map("favorites")
+}
+
+// In-app notifications (no email/push/WebSockets — out of scope, see
+// docs/GUIDE.md). Created by the backend whenever a booking's status
+// changes in a way the other party should know about.
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+// A rating + optional comment a WSpacer leaves on one of their own
+// completed bookings. One review per booking (bookingId is unique) —
+// tying it to a specific completed stay, not just to the space in
+// general, so a guest can only review a space they actually booked.
+model Review {
+  id        Int      @id @default(autoincrement())
+  bookingId Int      @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  spaceId   Int
+  space     Space    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@map("reviews")
+}

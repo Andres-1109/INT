@@ -1,0 +1,43 @@
+/*
+  variables.css
+  Aquí viven los colores, tipografía y medidas base de WSPACE.
+  Si quieren cambiar la paleta de colores, este es el único archivo que necesitan tocar.
+*/
+
+:root {
+  /* Colores de marca */
+  --color-primary: #0f6e56;        /* teal / azul petroleo - botones principales, precios */
+  --color-primary-dark: #0B5443;
+  --color-primary-light: #E6F2EF;
+
+  --color-secondary: #a55086;      /* coral - acentos, badges, elementos calidos */
+  --color-secondary-light: #FBEAE3;
+
+  --color-neutral: #5F5E5A;        /* gris - textos secundarios, bordes */
+  --color-neutral-light: #F5F5F4;
+
+  --color-text: #26251F;
+  --color-text-muted: #767570;
+  --color-white: #FFFFFF;
+  --color-border: #E4E3E0;
+
+  --color-success: #3C9A5F;
+  --color-warning: #C98A1B;
+  --color-error: #C94B3F;
+
+  /* Tipografia */
+  --font-main: 'Montserrat', sans-serif;
+
+  /* Espaciado */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+
+  --max-width: 1180px;
+}

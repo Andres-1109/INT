@@ -1,0 +1,27 @@
+# docker-compose.yml
+#
+# What does this file do?
+# Spins up a PostgreSQL container already configured for WSPACE.
+#
+# How to use it:
+#   1. docker compose up -d      (starts the database)
+#   2. Run the Prisma migrations (see README.md)
+#   3. To stop it: docker compose down
+#      (to also wipe the stored data: docker compose down -v)
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: wspace_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wspace_db
+      POSTGRES_USER: wspace_user
+      POSTGRES_PASSWORD: wspace_pass_2026
+    ports:
+      - "5433:5432"
+    volumes:
+      - wspace_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  wspace_postgres_data:

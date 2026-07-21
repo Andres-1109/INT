@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSPACE — El espacio que necesitas, cuando lo necesitas</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/photos/logo.png">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <main id="app-view"></main>
+
+  <div id="footer"></div>
+
+  <!-- Orden importante: los modulos base (core) primero, las vistas despues, app.js al final.
+       Rutas absolutas (con "/" inicial): el router usa paths "reales" (p. ej.
+       /my-spaces/1/edit), y con rutas relativas estos <script> se resolverían
+       contra esa URL anidada en vez de la raíz del sitio al recargar la
+       página o entrar por un link directo. -->
+  <script src="/js/core/i18n.js"></script>
+  <script src="/js/core/utils.js"></script>
+  <script src="/js/core/auth.js"></script>
+  <script src="/js/core/api.js"></script>
+  <script src="/js/core/upload.js"></script>
+  <script src="/js/core/router.js"></script>
+
+  <script src="/js/components/navbar.js"></script>
+  <script src="/js/components/footer.js"></script>
+  <script src="/js/components/welcomeModal.js"></script>
+  <script src="/js/components/loginModal.js"></script>
+  <script src="/js/components/spaceCard.js"></script>
+
+  <script src="/js/views/home.js"></script>
+  <script src="/js/views/spacesList.js"></script>
+  <script src="/js/views/spaceDetail.js"></script>
+  <script src="/js/views/myBookings.js"></script>
+  <script src="/js/views/favorites.js"></script>
+  <script src="/js/views/profile.js"></script>
+  <script src="/js/views/notifications.js"></script>
+  <script src="/js/views/dashboard.js"></script>
+  <script src="/js/views/mySpaces.js"></script>
+  <script src="/js/views/publishSpace.js"></script>
+  <script src="/js/views/editSpace.js"></script>
+  <script src="/js/views/spaceAvailability.js"></script>
+  <script src="/js/views/hostBookings.js"></script>
+  <script src="/js/views/hostReviews.js"></script>
+  <script src="/js/views/legalPages.js"></script>
+  <script src="/js/views/aboutPage.js"></script>
+  <script src="/js/views/adminSpaces.js"></script>
+  <script src="/js/views/verificationDocuments.js"></script>
+
+  <script src="/js/core/app.js"></script>
+</body>
+</html>
